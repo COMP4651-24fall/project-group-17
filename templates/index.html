@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Stock Prediction</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .search-container {
+            margin: 20px 0;
+        }
+        #searchInput {
+            padding: 8px;
+            width: 200px;
+        }
+        #suggestions {
+            position: absolute;
+            border: 1px solid #ddd;
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+            background: white;
+        }
+        .suggestion-item {
+            padding: 8px;
+            cursor: pointer;
+        }
+        .suggestion-item:hover {
+            background-color: #f0f0f0;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            display: none;
+        }
+        .loading {
+            display: none;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>5 day's Stock Price Prediction Tool (S&P 500) </h1>
+    
+    <div class="search-container">
+        <h2>Search and Click for a stock ticker symbol:</h2>
+        <input type="text" id="searchInput" placeholder="Search ticker symbol... e.g. MMM">
+        <div id="suggestions"></div>
+    </div>
+
+    <div class="loading" id="loading">Loading prediction...</div>
+    
+    <div id="result"></div>
+
+    <script>
+        const symbols = JSON.parse('{{ symbols|tojson|safe }}');
+        const searchInput = document.getElementById('searchInput');
+        const suggestionsDiv = document.getElementById('suggestions');
+        const resultDiv = document.getElementById('result');
+        const loadingDiv = document.getElementById('loading');
+
+        searchInput.addEventListener('input', function() {
+            const value = this.value.toUpperCase();
+            if (!value) {
+                suggestionsDiv.style.display = 'none';
+                return;
+            }
+
+            const filtered = symbols.filter(symbol => 
+                symbol.includes(value)
+            );
+
+            suggestionsDiv.innerHTML = '';
+            filtered.forEach(symbol => {
+                const div = document.createElement('div');
+                div.className = 'suggestion-item';
+                div.textContent = symbol;
+                div.onclick = () => selectSymbol(symbol);
+                suggestionsDiv.appendChild(div);
+            });
+
+            suggestionsDiv.style.display = filtered.length ? 'block' : 'none';
+        });
+
+        function selectSymbol(symbol) {
+            searchInput.value = symbol;
+            suggestionsDiv.style.display = 'none';
+            getPrediction(symbol);
+        }
+
+        async function getPrediction(symbol) {
+            resultDiv.style.display = 'none';
+            loadingDiv.style.display = 'block';
+
+            try {
+                const response = await fetch(`/api/predict/${symbol}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <h2>${symbol} Prediction Results</h2>
+                        <p>Current Price: $${data.current_price}</p>
+                        <p>Predicted Price: $${data.predicted_price}</p>
+                        <p>Percentage Change: ${data.percentage_change}%</p>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<p>Error: ${data.error}</p>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<p>Error: ${error.message}</p>`;
+            }
+
+            loadingDiv.style.display = 'none';
+            resultDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html> 
